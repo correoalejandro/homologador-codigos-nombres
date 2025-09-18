@@ -51,12 +51,6 @@ from PIL import Image
 
 import base64
 
-try:
-    load_env()
-    
-except Exception as e:
-    st.error("❌ No se pudo conectar a la API de IA. Verifica tu conexión a Internet.")
-    st.stop()
 
 def get_secret(name, default=None):
     """
