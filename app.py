@@ -12,8 +12,8 @@ Environment:
     - Python deps: streamlit, pandas, numpy, python-dotenv, openai, pyarrow, tqdm
 
 Main features:
-    1) Single query search: user types a description/name to homologate, gets top-k candidates from the catalog.
-    2) Batch homologation: user uploads a CSV of items (with a text column) and gets top-k candidates per row.
+    1) Single query search: user types a description/name to homologate, gets Candidatos a comparar (máx. 5) candidates from the catalog.
+    2) Batch homologation: user uploads a CSV of items (with a text column) and gets Candidatos a comparar (máx. 5) candidates per row.
     3) Catalog loading: CSV/Parquet with columns for code + description; can have precomputed embeddings or not.
     4) Export: download CSVs with candidate results.
 """
@@ -40,29 +40,62 @@ try:
 except Exception:
     _OPENAI_OK = False
 
-import os, streamlit as st
+
 import os, streamlit as st
 from dotenv import load_dotenv, find_dotenv
 
 
-# Load .env if present (local/Codespaces dev)
-load_dotenv(find_dotenv(".env", usecwd=True))
+# --- Logo institucional ---
+from PIL import Image
+
+
+import base64
+
+try:
+    load_env()
+    cat_df2 = ensure_embeddings(cat_df, text_col=default_text_col, model=model)
+except Exception as e:
+    st.error("❌ No se pudo conectar a la API de IA. Verifica tu conexión a Internet.")
+    st.stop()
 
 def get_secret(name, default=None):
-    # On Streamlit Cloud, st.secrets exists; elsewhere use env vars
+    """
+    Load secrets in priority:
+    1. Streamlit Cloud (st.secrets)
+    2. Environment variables (os.getenv)
+    3. Optional default value
+    """
     try:
         return st.secrets.get(name, os.getenv(name, default))
     except Exception:
         return os.getenv(name, default)
 
+# === App secrets ===
 OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
 USERNAMES = [u.strip() for u in (get_secret("USERNAMES","") or "").split(",") if u.strip()]
 PASSWORDS = [p.strip() for p in (get_secret("PASSWORDS","") or "").split(",") if p.strip()]
 
-st.set_page_config(page_title="Homologador de Códigos y Nombres", page_icon="🧭", layout="wide")
 
+st.set_page_config(page_title="Homologador de Estructura de desglose de Trabajo: Códigos y Nombres", page_icon="🧭", layout="wide")
 
+# --- Logo institucional --
 
+logo_path = "Logotipo-ESCUELA-sin-VM.width-380_R7iE0XU.png"
+with open(logo_path, "rb") as f:
+    logo_bytes = f.read()
+logo_b64 = base64.b64encode(logo_bytes).decode()
+
+st.markdown(
+    f"""
+    <div style="background-color:white; padding:10px; text-align:center;">
+        <img src="data:image/png;base64,{logo_b64}" width="280">
+        <p style="font-size:14px; margin-top:5px;">
+            Escuela Colombiana de Ingeniería Julio Garavito
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---- Read credentials from env ----
 usernames = [u.strip() for u in os.getenv("USERNAMES", "").split(",") if u.strip()]
@@ -101,7 +134,7 @@ def guarded_login():
             st.session_state["auth_user"] = u
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Credenciales inválidas")
             st.stop()
 
     st.info("Please log in to continue.")
@@ -112,8 +145,8 @@ if not guarded_login():
     st.stop()
 
 # ---- Private content of your app ----
-st.title("Homologador de Códigos y Nombres")
-st.write("✅ You are logged in. Place your app logic here.")
+st.title("Homologador de Estructura de desglose de Trabajo: Códigos y Nombres")
+st.write("✅ Has ingresado.")
 
 # Example: use your OpenAI key safely
 openai_key = os.getenv("OPENAI_API_KEY")
@@ -280,7 +313,7 @@ def normalize_rows(mat: np.ndarray) -> np.ndarray:
 
 
 def topk_cosine(a: np.ndarray, b: np.ndarray, k: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Return top-k neighbors in b for each row of a using cosine similarity.
+    """Return Candidatos a comparar (máx. 5) neighbors in b for each row of a using cosine similarity.
 
     Parameters
     ----------
@@ -391,7 +424,7 @@ def candidates_from_catalog(
     k: int = 5,
     keep_cols: Optional[List[str]] = None
 ) -> pd.DataFrame:
-    """Compute all-vs-all top-k candidates inside a catalog.
+    """Compute all-vs-all Candidatos a comparar (máx. 5) candidates inside a catalog.
 
     Parameters
     ----------
@@ -452,7 +485,7 @@ def candidates_for_queries(
     k: int = 5,
     keep_cols: Optional[List[str]] = None
 ) -> pd.DataFrame:
-    """Compute top-k candidates in the catalog for external query texts.
+    """Compute Candidatos a comparar (máx. 5) candidates in the catalog for external query texts.
 
     Parameters
     ----------
@@ -514,22 +547,23 @@ def candidates_for_queries(
 
 
 
-st.title("Homologación de códigos por similitud semántica")
-st.caption("Consulta candidatos por similitud coseno a partir de embeddings.")
+st.title("Homologador de Estructura de desglose de Trabajo: Códigos y Nombres")
+st.caption("Buscador semántico que sugiere equivalencias del Diccionario de la EDT ARPRO para estandarizar proyectos.")
 
 with st.sidebar:
-    st.header("Catálogo base")
-    cat_file = st.file_uploader("Sube el catálogo (CSV o Parquet)", type=["csv", "parquet"])
-    default_text_col = st.text_input("Columna de texto (catálogo)", value="Descripción_prefijada")
-    default_code_col = st.text_input("Columna de código (catálogo)", value="Código")
+    st.header("diccionario base")
+    cat_file = st.file_uploader("Sube el Diccionario maestro de la EDT (CSV o Parquet)", type=["csv", "parquet"])
+    default_text_col = st.text_input("Columna de texto (diccionario)", value="Descripción_prefijada")
+    default_code_col = st.text_input("Columna de código (diccionario)", value="Código")
     keep_cols_inp = st.text_input("Otras columnas a mostrar (coma)", value="Unidad,Categoría")
     keep_cols = [c.strip() for c in keep_cols_inp.split(",") if c.strip()]
-    model = st.text_input("Modelo de embeddings", value="text-embedding-3-small")
-    k = st.number_input("Top-k", min_value=1, max_value=20, value=5, step=1)
-    use_default_catalog = st.toggle("Usar catálogo incluido (data/catalogo.parquet)", value=True)
+    model = st.text_input("Modelo de IA para vectores (embeddings)", value="text-embedding-3-small")
+    k = st.number_input("Candidatos a comparar (máx. 5)", min_value=1, max_value=20, value=5, step=1)
+    use_default_catalog = st.toggle("Usar Diccionario maestro de la EDT incluido (ejemplo de prueba)", value=True)
 
     st.markdown("---")
-    st.caption("Variables de entorno: usa .env con OPENAI_API_KEY (y opcional OPENAI_BASE_URL).")
+    st.caption("Este módulo usa inteligencia artificial para calcular similitud semántica. Los datos de referencia provienen del Diccionario maestro de la EDT ARPRO.")
+
 
 # Load catalog
 cat_df = None
@@ -539,15 +573,15 @@ try:
     if use_default_catalog and default_parquet_path.exists():
         # Carga desde repo (cacheado)
         cat_df = load_default_catalog(str(default_parquet_path))
-        st.caption(f"Catálogo cargado desde {default_parquet_path} ({len(cat_df):,} filas).")
+        st.caption(f"diccionario cargado desde {default_parquet_path} ({len(cat_df):,} filas).")
     elif cat_file is not None:
         # Carga desde archivo subido (CSV o Parquet)
         cat_df = read_table(cat_file)
-        st.caption(f"Catálogo cargado desde archivo subido: {getattr(cat_file, 'name', 'upload')} ({len(cat_df):,} filas).")
+        st.caption(f"diccionario cargado desde archivo subido: {getattr(cat_file, 'name', 'upload')} ({len(cat_df):,} filas).")
     else:
-        st.info("Sube un catálogo en la barra lateral o activa 'Usar catálogo incluido (data/catalogo.parquet)'.")
+        st.info("Sube un diccionario en la barra lateral o activa 'Usar diccionario incluido (data/catalogo.parquet)'.")
 except Exception as e:
-    st.error(f"No se pudo leer el catálogo: {e}")
+    st.error(f"No se pudo leer el diccionario: {e}")
     cat_df = None
 
 # Normaliza posibles embeddings serializados como JSON en CSV
@@ -558,18 +592,18 @@ if cat_df is not None and "embedding" in cat_df.columns and isinstance(cat_df["e
         pass
 
 
-tab1, tab2 = st.tabs(["Consulta por texto", "Homologación por grupo"])
+tab1, tab2 = st.tabs(["Búsqueda individual", "Homologación por grupo(excel)"])
 
 with tab1:
     st.subheader("1) Buscar candidatos para un texto")
-    st.write("Escribe el nombre/descrición que quieres homologar y obtén los k candidatos más cercanos del catálogo.")
+    st.write("Escribe el nombre o descripción que quieras homologar y el sistema te mostrará las 5 alternativas más cercanas del Diccionario maestro de la EDT.")
 
     q_text = st.text_input("Texto a homologar", value="")
     run_single = st.button("Buscar candidatos")
 
     if run_single:
         if cat_df is None:
-            st.warning("Sube primero el catálogo en la barra lateral.")
+            st.warning("Sube primero el diccionario de la EDT en la barra lateral.")
         elif default_text_col not in cat_df.columns or default_code_col not in cat_df.columns:
             st.error("Revisa los nombres de columnas (texto y código) configurados en la barra lateral.")
         else:
@@ -603,7 +637,7 @@ with tab2:
 
     if run_batch:
         if cat_df is None:
-            st.warning("Sube primero el catálogo en la barra lateral.")
+            st.warning("Sube primero el diccionario en la barra lateral.")
         else:
             try:
                 load_env()
@@ -634,4 +668,4 @@ with tab2:
                 st.error(f"Error al procesar el grupo: {e}")
 
 st.markdown("---")
-st.caption("Este ejecutable calcula similitud coseno entre embeddings normalizados y ordena candidatos por puntaje (mayor es más similar).")
+st.caption("Esta herramienta calcula similitud semántica (coseno) para sugerir equivalencias en la EDT ARPRO. Un puntaje más alto indica mayor similitud.")
