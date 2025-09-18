@@ -41,11 +41,23 @@ except Exception:
     _OPENAI_OK = False
 
 import os, streamlit as st
-import streamlit_authenticator as stauth
+import os, streamlit as st
+from dotenv import load_dotenv, find_dotenv
 
 
-# ---- Load .env (local dev) ----
-load_dotenv()
+# Load .env if present (local/Codespaces dev)
+load_dotenv(find_dotenv(".env", usecwd=True))
+
+def get_secret(name, default=None):
+    # On Streamlit Cloud, st.secrets exists; elsewhere use env vars
+    try:
+        return st.secrets.get(name, os.getenv(name, default))
+    except Exception:
+        return os.getenv(name, default)
+
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
+USERNAMES = [u.strip() for u in (get_secret("USERNAMES","") or "").split(",") if u.strip()]
+PASSWORDS = [p.strip() for p in (get_secret("PASSWORDS","") or "").split(",") if p.strip()]
 
 st.set_page_config(page_title="Homologador de Códigos y Nombres", page_icon="🧭", layout="wide")
 
