@@ -539,9 +539,6 @@ def candidates_for_queries(
 
 # ==================== Streamlit UI ====================
 
-
-
-st.title("Homologador de Estructura de desglose de Trabajo: Códigos y Nombres")
 st.caption("Buscador semántico que sugiere equivalencias del Diccionario de la EDT ARPRO para estandarizar proyectos.")
 
 with st.sidebar:
