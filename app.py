@@ -53,7 +53,7 @@ import base64
 
 try:
     load_env()
-    cat_df2 = ensure_embeddings(cat_df, text_col=default_text_col, model=model)
+    
 except Exception as e:
     st.error("❌ No se pudo conectar a la API de IA. Verifica tu conexión a Internet.")
     st.stop()
