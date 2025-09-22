@@ -543,7 +543,7 @@ st.caption("Buscador semántico que sugiere equivalencias del Diccionario de la 
 
 with st.sidebar:
     st.header("diccionario base")
-    cat_file = st.file_uploader("Sube el Diccionario maestro de la EDT (CSV o Parquet)", type=["csv", "parquet"])
+    cat_file = st.file_uploader("Sube el Diccionario maestro de la EDT (Excel o Parquet)", type=["csv", "parquet"])
     default_text_col = st.text_input("Columna de texto (diccionario)", value="Descripción_prefijada")
     default_code_col = st.text_input("Columna de código (diccionario)", value="Código")
     keep_cols_inp = st.text_input("Otras columnas a mostrar (coma)", value="Unidad,Categoría")
