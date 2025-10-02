@@ -633,8 +633,8 @@ with st.sidebar:
 
 
 # Load catalog
-cat_df = None
-default_parquet_path = Path("data/base_insumos_2.parquet")
+
+default_parquet_path = cat_df
 
 try:
     if use_default_catalog and default_parquet_path.exists():
