@@ -634,13 +634,7 @@ with st.sidebar:
 
 # Load catalog
 
-try:
-    # siempre intentamos con el .enc
-    cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
-    st.caption(f"diccionario cargado desde .enc ({len(cat_df):,} filas).")
-except Exception as e:
-    st.error(f"No se pudo descifrar el diccionario .enc: {e}")
-    cat_df = None
+
 
 # ---------------------------
 # fallbacks opcionales
