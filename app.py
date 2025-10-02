@@ -35,6 +35,11 @@ from pathlib import Path
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+SCRYPT_N = 2**14
+SCRYPT_R = 8
+SCRYPT_P = 1
+KEYLEN   = 32
+
 from io import BytesIO
 
 
@@ -147,7 +152,7 @@ if not guarded_login():
 st.title("Homologador de Estructura de desglose de Trabajo: Códigos y Nombres")
 st.write("✅ Has ingresado.")
 
-# Example: use your OpenAI key safely
+# use your OpenAI key safely
 openai_key = os.getenv("OPENAI_API_KEY")
 if openai_key:
     st.caption("OPENAI_API_KEY loaded from env (hidden).")
@@ -155,6 +160,55 @@ else:
     st.warning("No OPENAI_API_KEY found in env.")
 
 # ==================== Utilities ====================
+
+
+## data password
+def _derive_key(password: str, salt: bytes) -> bytes:
+    kdf = Scrypt(salt=salt, length=KEYLEN, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P)
+    return kdf.derive(password.encode("utf-8"))
+
+def load_encrypted_parquet_verify(path_enc: str, password: str) -> pd.DataFrame:
+    blob = Path(path_enc).read_bytes()
+    header_len = int.from_bytes(blob[:4], "big")
+    header = json.loads(blob[4:4+header_len].decode("utf-8"))
+    data_ct = blob[4+header_len:]
+
+    data_nonce = bytes.fromhex(header["nonce_data"])
+    envelopes = header["envelopes"]
+
+    master_key = None
+    # probar todos los sobres
+    for env in envelopes:
+        try:
+            salt = bytes.fromhex(env["salt"])
+            nonce = bytes.fromhex(env["nonce"])
+            ct = bytes.fromhex(env["ct"])
+            k = _derive_key(password, salt)
+            mk = AESGCM(k).decrypt(nonce, ct, None)
+            master_key = mk
+            break
+        except Exception:
+            continue
+
+    if master_key is None:
+        raise ValueError("La contraseña no corresponde a ningún sobre válido.")
+
+    # descifrar los datos con la master_key
+    data = AESGCM(master_key).decrypt(data_nonce, data_ct, None)
+    return pd.read_parquet(BytesIO(data))
+# ---------------------------
+# carga del dataset
+# ---------------------------
+
+# usa la contraseña que puso el usuario al loguearse
+password = st.session_state.get("login_pass")
+
+
+cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
+
+
+## data encryption
+
 
 def _lazy_imports_ok() -> bool:
     """Return True if optional imports are available, otherwise False.
