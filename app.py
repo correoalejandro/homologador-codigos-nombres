@@ -32,6 +32,7 @@ from pathlib import Path
 
 
 # encrypt
+import re
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -136,7 +137,9 @@ def guarded_login():
         if u in CREDS and CREDS[u] == p:
             st.session_state["is_auth"] = True
             st.session_state["auth_user"] = u
+            st.session_state["login_pass"] = p   # <-- GUARDA EL PASS
             st.rerun()
+
         else:
             st.error("Credenciales inválidas")
             st.stop()
@@ -163,9 +166,15 @@ else:
 
 
 ## data password
-def _derive_key(password: str, salt: bytes) -> bytes:
-    kdf = Scrypt(salt=salt, length=KEYLEN, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P)
-    return kdf.derive(password.encode("utf-8"))
+_hex_re = re.compile(r"^[0-9a-fA-F]+$")
+def _derive_key_from_input(input_str: str, salt: bytes) -> bytes:
+    s = (input_str or "").strip()
+    if _hex_re.fullmatch(s):
+        pw_bytes = bytes.fromhex(s)
+    else:
+        pw_bytes = s.encode("utf-8")
+    kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1)
+    return kdf.derive(pw_bytes)
 
 def load_encrypted_parquet(path_enc: str, password: str) -> pd.DataFrame:
     blob = Path(path_enc).read_bytes()
@@ -183,7 +192,7 @@ def load_encrypted_parquet(path_enc: str, password: str) -> pd.DataFrame:
             salt = bytes.fromhex(env["salt"])
             nonce = bytes.fromhex(env["nonce"])
             ct = bytes.fromhex(env["ct"])
-            k = _derive_key(password, salt)
+            k = _derive_key_from_input(password, salt)
             mk = AESGCM(k).decrypt(nonce, ct, None)
             master_key = mk
             break
