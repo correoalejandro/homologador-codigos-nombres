@@ -634,23 +634,30 @@ with st.sidebar:
 
 # Load catalog
 
-default_parquet_path = cat_df
-
 try:
-    if use_default_catalog and default_parquet_path.exists():
-        # Carga desde repo (cacheado)
-        cat_df = load_default_catalog(str(default_parquet_path))
-        st.caption(f"diccionario cargado desde {default_parquet_path} ({len(cat_df):,} filas).")
-    elif cat_file is not None:
-        # Carga desde archivo subido (CSV o Parquet)
-        cat_df = read_table(cat_file)
-        st.caption(f"diccionario cargado desde archivo subido: {getattr(cat_file, 'name', 'upload')} ({len(cat_df):,} filas).")
-    else:
-        st.info("Sube un diccionario en la barra lateral o activa 'Usar diccionario incluido (data/catalogo.parquet)'.")
+    # siempre intentamos con el .enc
+    cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
+    st.caption(f"diccionario cargado desde .enc ({len(cat_df):,} filas).")
 except Exception as e:
-    st.error(f"No se pudo leer el diccionario: {e}")
+    st.error(f"No se pudo descifrar el diccionario .enc: {e}")
     cat_df = None
 
+# ---------------------------
+# fallbacks opcionales
+# ---------------------------
+if cat_df is None:
+    try:
+        if use_default_catalog and Path("data/base_insumos_2.parquet").exists():
+            cat_df = load_default_catalog("data/base_insumos_2.parquet")
+        elif cat_file is not None:
+            cat_df = read_table(cat_file)
+        else:
+            st.info("Sube un diccionario o activa 'Usar diccionario incluido'.")
+    except Exception as e:
+        st.error(f"No se pudo leer el diccionario: {e}")
+        cat_df = None
+
+        
 # Normaliza posibles embeddings serializados como JSON en CSV
 if cat_df is not None and "embedding" in cat_df.columns and isinstance(cat_df["embedding"].iloc[0], str):
     try:
