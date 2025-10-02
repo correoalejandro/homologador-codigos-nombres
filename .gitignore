@@ -1,0 +1,23 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+data/
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datos locales (ignorar por defecto)
+*.csv
+*.parquet
+
+# EXCEPCIÓN: mantener los CSV dentro de data/
+data/*.parquet
+*.csv
+
+# Configs locales
+.streamlit/secrets.toml
+.DS_Store
+.env
