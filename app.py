@@ -167,7 +167,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     kdf = Scrypt(salt=salt, length=KEYLEN, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P)
     return kdf.derive(password.encode("utf-8"))
 
-def load_encrypted_parquet_verify(path_enc: str, password: str) -> pd.DataFrame:
+def load_encrypted_parquet(path_enc: str, password: str) -> pd.DataFrame:
     blob = Path(path_enc).read_bytes()
     header_len = int.from_bytes(blob[:4], "big")
     header = json.loads(blob[4:4+header_len].decode("utf-8"))
