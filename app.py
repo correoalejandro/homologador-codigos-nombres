@@ -137,8 +137,9 @@ def guarded_login():
         if u in CREDS and CREDS[u] == p:
             st.session_state["is_auth"] = True
             st.session_state["auth_user"] = u
-            st.session_state["login_pass"] = p   # <-- GUARDA EL PASS
+            st.session_state["auth_pass"] = p   # <- usa un key distinto al del widget
             st.rerun()
+
 
         else:
             st.error("Credenciales inválidas")
@@ -210,8 +211,10 @@ def load_encrypted_parquet(path_enc: str, password: str) -> pd.DataFrame:
 # ---------------------------
 
 # usa la contraseña que puso el usuario al loguearse
-password = st.session_state.get("login_pass")
-
+password = st.session_state.get("auth_pass")
+if not password:
+    st.warning("Inicia sesión para usar la contraseña como llave del .enc.")
+    st.stop()
 
 cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
 
