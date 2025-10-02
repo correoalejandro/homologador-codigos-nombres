@@ -216,8 +216,13 @@ if not password:
     st.warning("Inicia sesión para usar la contraseña como llave del .enc.")
     st.stop()
 
-cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
 
+try:
+    cat_df = load_encrypted_parquet("data/base_insumos_2.parquet.enc", password)
+    st.caption(f"diccionario cargado desde data/base_insumos_2.parquet.enc ({len(cat_df):,} filas).")
+except Exception as e:
+    st.error(f"No se pudo descifrar/leer el diccionario .enc: {e}")
+    st.stop()
 
 ## data encryption
 
